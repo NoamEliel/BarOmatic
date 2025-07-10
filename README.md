@@ -42,9 +42,13 @@ BarOmatic is a streamlined automation program built in C# for event-based mobile
 
 ## 🧠 Future Plans
  Event type logic (e.g., brunch, wedding, corporate party)
+ 
  Stock requirements per bar type
+ 
  Time-sensitive stock multipliers
+ 
  UI or Web integration
+ 
  Database or file storage for event logs
 
 👤 Author
