@@ -53,5 +53,5 @@ BarOmatic is a streamlined automation program built in C# for event-based mobile
 
 👤 Author
 Noam Eliel
-Automation & Event Tech Developer
+Automation & Tech Developer
 2025
