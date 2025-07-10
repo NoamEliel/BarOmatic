@@ -38,3 +38,21 @@ BarOmatic is a streamlined automation program built in C# for event-based mobile
 8. Alcohol Bar - Premium          ₪480/hr
 9. Beer - Normal/Special          ₪260/hr
 10. Wine - Normal/Special         ₪290/hr
+
+
+
+🧠 Future Plans
+ Event type logic (e.g., brunch, wedding, corporate party)
+
+ Stock requirements per bar type
+
+ Time-sensitive stock multipliers
+
+ UI or Web integration
+
+ Database or file storage for event logs
+
+👤 Author
+Noam Eliel
+Automation & Event Tech Developer
+2025
