@@ -1,4 +1,5 @@
 <img width="70" height="70" alt="output-onlinepngtools" src="https://github.com/user-attachments/assets/93304cd1-9977-4b7a-84d1-72e1f72604c5" />
+
 ## BarOmatic 2.0 GUI
 BarOmatic 2.0 is a graphical event planning tool for mobile bar companies and event organizers.
 It calculates drinks, staff, equipment, and costs based on guest count, event duration, time of day, and selected bar types — giving you real-time, accurate planning.
