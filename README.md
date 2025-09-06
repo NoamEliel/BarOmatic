@@ -1,4 +1,4 @@
-<img width="48" height="48" alt="output-onlinepngtools" src="https://github.com/user-attachments/assets/93304cd1-9977-4b7a-84d1-72e1f72604c5" /> ## BarOmatic
+<img width="48" height="48" alt="output-onlinepngtools" src="https://github.com/user-attachments/assets/93304cd1-9977-4b7a-84d1-72e1f72604c5" /> ##BarOmatic
 
 ## BarOmatic 2.0 GUI
 BarOmatic 2.0 is a graphical event planning tool for mobile bar companies and event organizers.
