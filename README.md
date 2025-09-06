@@ -5,7 +5,6 @@ It calculates drinks, staff, equipment, and costs based on guest count, event du
 ## 🚀 Highlights
 
 Modern WPF GUI – No more console input, just a clean, interactive interface.
-Modern WPF GUI – No more console input, just a clean, interactive interface.
 Smart Drink Calculations – Accounts for:
 Time of day (Morning / Afternoon / Evening)
 Social vs. Professional events
