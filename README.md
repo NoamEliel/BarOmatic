@@ -3,6 +3,8 @@ BarOmatic 2.0 is a graphical event planning tool for mobile bar companies and ev
 It calculates drinks, staff, equipment, and costs based on guest count, event duration, time of day, and selected bar types — giving you real-time, accurate planning.
 
 ## 🚀 Highlights
+
+Modern WPF GUI – No more console input, just a clean, interactive interface.
 Modern WPF GUI – No more console input, just a clean, interactive interface.
 Smart Drink Calculations – Accounts for:
 Time of day (Morning / Afternoon / Evening)
