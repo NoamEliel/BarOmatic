@@ -1,4 +1,5 @@
-<img width="70" height="70" alt="output-onlinepngtools" src="https://github.com/user-attachments/assets/93304cd1-9977-4b7a-84d1-72e1f72604c5" />## BarOmatic
+<img width="70" height="70" alt="output-onlinepngtools" src="https://github.com/user-attachments/assets/93304cd1-9977-4b7a-84d1-72e1f72604c5" />
+## BarOmatic
 
 ## BarOmatic 2.0 GUI
 BarOmatic 2.0 is a graphical event planning tool for mobile bar companies and event organizers.
@@ -20,3 +21,14 @@ Get instant summaries for equipment, drinks, and staff.
 Export or print for your team or clients.
 
 
+## 🧮 Why BarOmatic Matters
+Event planning for mobile bars is usually based on intuition and experience, with managers estimating drinks, staff, and equipment on the fly.
+While this works, it often leads to inconsistent results and hidden inefficiencies.
+
+BarOmatic 2.0 translates these human, experience-based decisions into precise algorithms, accounting for subtle factors like:
+- Guest behavior at different times of day
+- Variations between different events
+- The combined effect of multiple selected bars
+- Dynamic scaling over longer event durations
+This level of modeling is challenging to code, as it requires blending real-world patterns with flexible calculations.
+but the result is a reliable, repeatable system that eliminates guesswork and optimizes event planning.
