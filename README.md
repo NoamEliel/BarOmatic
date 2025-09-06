@@ -1,57 +1,25 @@
-# BarOmatic
+BarOmatic 2.0 GUI
+BarOmatic 2.0 is a graphical event planning tool for mobile bar companies and event organizers.
+It calculates drinks, staff, equipment, and costs based on guest count, event duration, time of day, and selected bar types — giving you real-time, accurate planning.
 
-BarOmatic is a streamlined automation program built in C# for event-based mobile bar companies. It simplifies the pricing, staffing, and logistics calculations for event planners by generating real-time cost breakdowns, bar selection summaries, and employee estimates — all tailored to the specific event type, duration, and guest count.
+🚀 Highlights
+Modern WPF GUI – No more console input, just a clean, interactive interface.
+Smart Drink Calculations – Accounts for:
+Time of day (Morning / Afternoon / Evening)
+Social vs. Professional events
+Alcohol-heavy bar combinations
+10 Bar Types Included – Espresso, Cocktails, Beer, Wine, Soda, Shakes, and more.
+Automatic Staffing – 1 staff per 40 guests, ₪45/hour per worker.
+Detailed Summaries – Cups, ingredients, machines, and staff all in one clear output.
 
-🚀 Features
+🖥 How It Works
+Launch the BarOmatic 2.0 GUI app.
+Select bar types and enter guest/event details.
+Get instant summaries for equipment, drinks, and staff.
+Export or print for your team or clients.
 
-- **Dynamic Pricing Engine**  
-  Calculates total cost for hosting an event, including:
-  - Hourly bar service fees
-  - Staff wage estimation
-  - Customizable profit margin per event
-  - Final customer-facing price
-
-- **Bar Selection System**  
-  Choose from a wide range of bar options such as espresso, cocktails, wine, shakes, and more — each with realistic, market-based pricing.
-
-- **Smart Staffing Logic**  
-  Determines number of employees needed based on guest count and working hours (1 employee per 40 guests, ₪40/hr per employee).
-
-- **Profit Margin Simulator**  
-  Lets business owners input and test various profit margin percentages before locking in final pricing.
-
-- **Readable Summary**  
-  Outputs a clean, formatted event summary including all selected bars, base costs, and total price with profit margin.
-
----
-
-## 📦 Sample Bars
-
-```text
-1. Espresso Bar                   ₪160/hr
-2. Easy Drinks                    ₪140/hr
-3. Soda Drinks                    ₪150/hr
-4. Shakes                         ₪240/hr
-5. Cocktails (with printing)      ₪360/hr
-6. Cocktails (no alcohol, print)  ₪310/hr
-7. Alcohol Bar - Gold             ₪400/hr
-8. Alcohol Bar - Premium          ₪480/hr
-9. Beer - Normal/Special          ₪260/hr
-10. Wine - Normal/Special         ₪290/hr
-```
-
-## 🧠 Future Plans
- Event type logic (e.g., brunch, wedding, corporate party)
- 
- Stock requirements per bar type
- 
- Time-sensitive stock multipliers
- 
- UI or Web integration
- 
- Database or file storage for event logs
-
-👤 Author
-Noam Eliel
-Automation & Tech Developer
-2025
+📜 v2.0 Release Notes
+✨ Complete GUI redesign for a modern, user-friendly experience.
+🧮 Improved drink-per-guest algorithm with realistic scaling.
+🍹 Added 10 unique bar types, each with specialized calculations.
+📊 Unified, professional summary formatting for clear output.
