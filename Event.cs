@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Xml.Linq;
 
 namespace BarOmaticGUI2.ProjectCode
 {
@@ -32,14 +33,14 @@ namespace BarOmaticGUI2.ProjectCode
         }
 
         // === Converters ===
-        internal Node<EventBarClass> ConvertSelectedBars()
+        internal Node<EventBarClass>? ConvertSelectedBars()
         {
-            Node<EventBarClass> head = null;
+            Node<EventBarClass> head = null!;
             Node<string> current = SelectedBarNames;
 
             while (current != null)
             {
-                EventBarClass ewBar = CreateEventBarFromName(current.GetValue());
+                EventBarClass ewBar = CreateEventBarFromName(current.GetValue())!;
                 if (ewBar != null)
                 {
                     head = Node<EventBarClass>.Append(head, ewBar);
@@ -48,7 +49,7 @@ namespace BarOmaticGUI2.ProjectCode
             }
             return head;
         }
-        private EventBarClass CreateEventBarFromName(string name)
+        private EventBarClass? CreateEventBarFromName(string name)
         {
             switch (name)
             {
@@ -66,12 +67,17 @@ namespace BarOmaticGUI2.ProjectCode
                 default: return null;
             }
         }
+
+        // === Calculators ===
         public double CalculateDrinksPerGuest()
         {
-            Node<EventBarClass> bars = ConvertSelectedBars();
-            if (bars == null)
+            Node<EventBarClass> bars = ConvertSelectedBars()!;
+            if (bars == null) { return 0.0; }
+
+            // Check for single bar event and use the specialized cap.
+            if (Node<EventBarClass>.Count(bars) == 1)
             {
-                return 0.0;
+                return GetSingleBarCap(bars.GetValue());
             }
 
             double baseRate;
@@ -79,23 +85,32 @@ namespace BarOmaticGUI2.ProjectCode
             else if (TimeOfDay == "afternoon") baseRate = AfternoonBaseRate;
             else baseRate = EveningBaseRate;
 
+            // The drinks per guest now starts with a base and grows with each bar
             double drinksPerGuestTotal = 0.0;
+            Node<EventBarClass> current = bars;
+
+            while (current != null)
+            {   
+                EventBarClass bar = current.GetValue();
+                double adjustedScore = bar.GetAdjustedPopularity(TimeOfDay, isSocial);
+
+                // Apply a portion of the adjusted popularity to the total.
+                // The factor of 0.5 is a new tuning parameter to prevent the total from becoming too high.
+                drinksPerGuestTotal += adjustedScore * 0.5;
+
+                current = current.GetNext();
+            }
+
+            // This block calculates the duration multiplier based on the event hours.
+            // It is now applied to the accumulated popularity.
             double h = DurationHours;
+            double durationMultiplier = 0.0;
+            durationMultiplier += (Math.Min(h, 1.0) * baseRate * 2.0);
+            durationMultiplier += (Math.Min(Math.Max(h - 1.0, 0.0), 2.0) * baseRate);
+            durationMultiplier += Math.Min(Math.Max(h - 3.0, 0.0), 3.0) * baseRate * 0.6;
+            durationMultiplier += Math.Max(h - 6.0, 0.0) * baseRate * 0.25;
 
-            // Calculate total drinks per guest based on duration and base rate
-            drinksPerGuestTotal += (Math.Min(h, 1.0) * baseRate * 2.0) + (Math.Min(Math.Max(h - 1.0, 0.0), 2.0) * baseRate);
-            drinksPerGuestTotal += Math.Min(Math.Max(h - 3.0, 0.0), 3.0) * baseRate * 0.6;
-            drinksPerGuestTotal += Math.Max(h - 6.0, 0.0) * baseRate * 0.25;
-
-            // Apply overall event type adjustments
-            if (isSocial)
-            {
-                drinksPerGuestTotal *= 1.25;
-            }
-            else if (isProfessional)
-            {
-                drinksPerGuestTotal *= 0.85;
-            }
+            drinksPerGuestTotal += durationMultiplier;
 
             // Apply dampening for multiple strong bars
             int strongBars = 0;
@@ -106,17 +121,9 @@ namespace BarOmaticGUI2.ProjectCode
                 tmp = tmp.GetNext();
             }
 
-            if (strongBars >= 2)
+            if (strongBars >= 1)
             {
-                drinksPerGuestTotal *= 0.85;
-            }
-
-            // Check for single bar caps and adjust total consumption
-            if (Node<EventBarClass>.Count(bars) == 1)
-            {
-                string barName = bars.GetValue().Name;
-                double cap = GetSingleBarCap(barName);
-                drinksPerGuestTotal = Math.Min(drinksPerGuestTotal, cap);
+                drinksPerGuestTotal *= 0.8;
             }
 
             return drinksPerGuestTotal;
@@ -125,119 +132,70 @@ namespace BarOmaticGUI2.ProjectCode
         {
             // A bar is considered "strong" if it contains any of these keywords in its name.
             return barName.Contains("Cocktail") ||
-           barName.Contains("Classic Alcohol") ||
-           barName.Contains("Beer") ||
-           barName.Contains("Wine") ||
-           barName.Contains("Alcohol");
+                   barName.Contains("Classic Alcohol") ||
+                   barName.Contains("Beer") ||
+                   barName.Contains("Wine") ||
+                   barName.Contains("Alcohol") || barName.Contains("Espresso");     
         }
-        private double GetSingleBarCap(string barName)
+        private double GetSingleBarCap(EventBarClass bar)
         {
             // Base caps for a 4-hour event (approximate drinks per guest)
             double baseCap;
-
-            if (barName.Contains("Espresso"))                                         { baseCap = 1.4; }
-            else if (barName.Contains("Cocktail") && !barName.Contains("no alcohol")) { baseCap = 3.0; }
-            else if (barName.Contains("Cocktail (no alcohol)"))                       { baseCap = 2.5; }
-            else if (barName.Contains("Classic Alcohol"))                             { baseCap = 3.2; }
-            else if (barName.Contains("Beer") || barName.Contains("Wine"))            { baseCap = 3.0; }
-            else if (barName.Contains("Easy Drinks") || barName.Contains("Soda") 
-                || barName.Contains("Shakes"))                                        { baseCap = 2.4; }
-            else                                                                      { baseCap = 2.0; } // default safety 
-
-            // Duration scaling (step-based)
-            double durationMultiplier = 1.0;
-
-            if (DurationHours > 4.0 && DurationHours <= 6.0)
+            if (bar == null)
             {
-                durationMultiplier = 1.10; // 10% increase for events over 4 hours
-            }
-            else if (DurationHours > 6.0)
-            {
-                durationMultiplier = 1.20; // 20% increase for events over 6 hours
-            }
+                return 0;
+            }        
 
-            baseCap *= durationMultiplier;
-            //Create multiplier
-            double multiplier = 1.0;
+            if (bar.Name.Contains("Espresso")) { baseCap = 0.4; }
+            else if (bar.Name.Contains("Cocktail") && !bar.Name.Contains("no alcohol")) { baseCap = 2.5; }
+            else if (bar.Name.Contains("Cocktail (no alcohol)")) { baseCap = 2.5; }
+            else if (bar.Name.Contains("Classic Alcohol")) { baseCap = 3.2; }
+            else if (bar.Name.Contains("Beer") || bar.Name.Contains("Wine")) { baseCap = 2.8; }
+            else if (bar.Name.Contains("Easy") || bar.Name.Contains("Soda")) { baseCap = 2.7; }
+            else if (bar.Name.Contains("Shakes")) { baseCap = 1.1; }
+            else if (bar.Name.Contains("Ice / Barad")) { baseCap = 1.4; }
+            else { baseCap = 2.0; }
 
-            // Social / Professional adjustments
-            if (isSocial)
-            {
-                if (barName.Contains("Espresso"))
-                    multiplier += 0.05; // Low demand, but some guests will want it.
-                else if (barName.Contains("Easy Drinks"))
-                    multiplier += 0.20; // Simple and refreshing options are moderately popular.
-                else if (barName.Contains("Soda Drinks"))
-                    multiplier += 0.20; // Similar to easy drinks, a reliable choice.
-                else if (barName.Contains("Shakes"))
-                    multiplier += 0.10; // A fun, dessert-like option.
-                else if (barName.Contains("Cocktails"))
-                    multiplier += 0.18; // Cocktails are a popular, festive choice.
-                else if (barName.Contains("Cocktails (no alcohol)"))
-                    multiplier += 0.15; // A popular non-alcoholic alternative.
-                else if (barName.Contains("Classic Alcohol"))
-                    multiplier += 0.20; // High consumption is expected at social events.
-                else if (barName.Contains("Beer") || barName.Contains("Wine"))
-                    multiplier += 0.20; // Very high demand for these at social events.
-                else if (barName.Contains("Ice / Barad"))
-                    multiplier += 0.15; // Less common, but still has demand.
-            }
-            else if (isProfessional)
-            {
-                if (barName.Contains("Espresso"))
-                    multiplier += 0.30; // Very high demand for coffee at professional events.
-                else if (barName.Contains("Easy Drinks"))
-                    multiplier += 0.30; // Simple and quick non-alcoholic options are popular.
-                else if (barName.Contains("Soda Drinks"))
-                    multiplier += 0.30; // A popular, straightforward choice.
-                else if (barName.Contains("Shakes"))
-                    multiplier -= 0.15; // Less likely to be consumed in a professional setting.
-                else if (barName.Contains("Cocktails"))
-                    multiplier -= 0.10; // Alcoholic drinks are less of a focus.
-                else if (barName.Contains("Cocktails (no alcohol)"))
-                    multiplier += 0.15; // A slightly more elegant non-alcoholic choice.
-                else if (barName.Contains("Classic Alcohol"))
-                    multiplier -= 0.15; // Alcoholic drinks are less of a focus.
-                else if (barName.Contains("Beer") || barName.Contains("Wine"))
-                    multiplier -= 0.10; // Moderate decline, as they are still offered but less central.
-                else if (barName.Contains("Ice / Barad"))
-                    multiplier -= 0.20; // A fun, but generally less professional, choice.
-            }
+            // Normalize baseCap based on event duration relative to a standard 4-hour event.
+            // This makes the cap correct for any duration provided.
+            double normalizedCap = baseCap * (DurationHours / 4.0);
 
-            // Time-of-day adjustments
-            if (TimeOfDay == "morning")
-            {
-                if (IsStrongBar(barName))
-                    multiplier -= 0.50; // almost no alcohol in the morning
-                else if (barName.Contains("Espresso"))
-                    multiplier += 0.40;
-            }
-            else if (TimeOfDay == "afternoon")
-            {
-                if (barName.Contains("Classic Alcohol") || barName.Contains("Cocktail"))
-                    multiplier -= 0.10; // lighter drinks in afternoon
-                else if (barName.Contains("Espresso"))
-                    multiplier += 0.10;
-            }
-            else if (TimeOfDay == "evening")
-            {
-                if (barName.Contains("Espresso"))
-                    multiplier -= 0.20;
-            }
+            // Get the bar's popularity, which now includes both time of day and event type adjustments.
+            double adjustedPopularity = bar.GetAdjustedPopularity(TimeOfDay, isSocial);
 
-            // Apply multiplier and ensure non-negative
-            double finalCap = baseCap * multiplier;
+            // The multiplier is the ratio of the adjusted popularity to the base popularity.
+            double multiplier = adjustedPopularity / bar.PopularityScore;
+
+            // Apply the multiplier to the normalized cap.
+            double finalCap = normalizedCap * multiplier;
+
+            // Ensure final cap is not negative.
             if (finalCap < 0.0) finalCap = 0.0;
+
             return finalCap;
+        
         }
         public Node<string> GetSelectedBarNames()
         {
             return SelectedBarNames;
         }
+        // In the Event.cs file, add this method
+        public double GetDampeningFactor()
+        {
+            int strongBars = 0;
+            Node<EventBarClass> tmp = ConvertSelectedBars()!;
+            while (tmp != null)
+            {
+                if (IsStrongBar(tmp.GetValue().Name)) strongBars++;
+                tmp = tmp.GetNext();
+            }
+            return (strongBars >= 1) ? 0.8 : 1.0;
+        }
+
         //nested bar classes:
         public class EspressoBar : EventBarClass
         {
-            public EspressoBar() : base("Espresso bar", 0.3) { }
+            public EspressoBar() : base("Espresso bar", 0.1) { }
 
             public override string[] PrintBarSummary(int guests, double hours, double drinks)
             {
@@ -705,7 +663,7 @@ namespace BarOmaticGUI2.ProjectCode
                 return lines;
             }
         }
-        public class ClassicAlcoholGoldBar : EventBarClass
+        public class ClassicAlcoholGoldBar      : EventBarClass
         {
             public ClassicAlcoholGoldBar() : base("Classic Alcohol Bar - Gold", 0.7) { }
 
@@ -1059,20 +1017,20 @@ namespace BarOmaticGUI2.ProjectCode
                 // Build the array
                 string[] lines =
                 {
-            "\n=== Ice / Barad Bar Summary ===\n",
-            "\n--- Equipment ---",
-            FormatLine("Machines", machines),
-            FormatLine("Minerosta Buckets", minerostaBuckets),
-            FormatLine("Matrefa Units", matrefaUnits),
-            FormatLine("250ML Cups", cups250),
-            FormatLine("Straws", straws),
-            "\n--- Consumables ---",
-            FormatLine("Ice Coffee Powder (grams)", iceCoffeePowder),
-            FormatLine("Ice Vanilla Powder (grams)", iceVanillaPowder),
-            FormatLine("Milk (ml)", milkMl),
-            FormatLine("Water Jerikans (liters)", waterJerikans),
-            ""
-        };
+                    "\n=== Ice / Barad Bar Summary ===\n",
+                    "\n--- Equipment ---",
+                    FormatLine("Machines", machines),
+                    FormatLine("Minerosta Buckets", minerostaBuckets),
+                    FormatLine("Matrefa Units", matrefaUnits),
+                    FormatLine("250ML Cups", cups250),
+                    FormatLine("Straws", straws),
+                    "\n--- Consumables ---",
+                    FormatLine("Ice Coffee Powder (grams)", iceCoffeePowder),
+                    FormatLine("Ice Vanilla Powder (grams)", iceVanillaPowder),
+                    FormatLine("Milk (ml)", milkMl),
+                    FormatLine("Water Jerikans (liters)", waterJerikans),
+                    ""
+                };
 
                 return lines;
             }
