@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using BarOmaticGUI2.Properties;
 
 namespace BarOmaticGUI2
 {
@@ -44,26 +45,38 @@ namespace BarOmaticGUI2
             if (!double.TryParse(EventHoursTextBox.Text, out double hours) || hours <= 0 || hours > 24.0)
                 return;
 
-            string timeOfDay = (TimeOfDayComboBox.SelectedItem as ComboBoxItem)?.Content.ToString().ToLower();
+            // Handle possible null ComboBoxItem safely
+            var selectedItem = TimeOfDayComboBox.SelectedItem as ComboBoxItem;
+            if (selectedItem?.Content == null)
+                return;
+
+            string timeOfDay = selectedItem.Content.ToString()!.ToLower();
             if (string.IsNullOrEmpty(timeOfDay))
                 return;
 
-            List<string> selectedBars = BarComboBox.SelectedItems.Cast<string>().ToList();
+            // Use OfType<string>() to avoid nullability issues
+            List<string> selectedBars = BarComboBox.SelectedItems.OfType<string>().ToList();
             if (selectedBars.Count == 0)
                 return;
 
-            string selectedEvent = EventComboBox.SelectedItem as string;
+            // Nullable string for safety
+            string? selectedEvent = EventComboBox.SelectedItem as string;
             if (string.IsNullOrEmpty(selectedEvent))
                 return;
 
             bool isSocial = EventComboBox.SelectedIndex >= 0 && EventComboBox.SelectedIndex <= 4;
             bool isProfessional = !isSocial;
 
+            // `MakeNodeFromList` may return null, so use `!` only after ensuring it's safe
+            var node = MakeNodeFromList(selectedBars);
+            if (node == null)
+                return;
+
             Event liveEvent = new Event(
                 guests,
                 hours,
                 timeOfDay,
-                MakeNodeFromList(selectedBars),
+                node,
                 isSocial,
                 isProfessional
             );
@@ -71,225 +84,168 @@ namespace BarOmaticGUI2
             UpdateRightPanel(liveEvent, selectedBars);
             PrintSummary(liveEvent);
         }
-        private Grid CreateRowGrid(Event liveEvent, List<(EventBarClass bar, double totalDrinks, double drinksPerGuest)> barInfoList)
+        private Node<string>? MakeNodeFromList(List<string> list)
         {
-            Grid rowGrid = new Grid();
-            int numBars = barInfoList.Count;
-
-            for (int i = 0; i < numBars; i++)
-                rowGrid.ColumnDefinitions.Add(new ColumnDefinition());
-
-            for (int i = 0; i < numBars; i++)
-            {
-                var (barInstance, totalDrinks, drinksPerGuest) = barInfoList[i];
-
-                // Fix infinities
-                if (double.IsInfinity(totalDrinks) || double.IsNaN(totalDrinks))
-                    totalDrinks = 0;
-                if (double.IsInfinity(drinksPerGuest) || double.IsNaN(drinksPerGuest))
-                    drinksPerGuest = 0;
-
-                TextBox textBox = new TextBox
-                {
-                    TextWrapping = TextWrapping.NoWrap,
-                    Margin = new Thickness(5),
-                    FontSize = 14,
-                    IsReadOnly = true,
-                    FontFamily = new FontFamily("Consolas"),
-                    Background = Brushes.Transparent,
-                    BorderThickness = new Thickness(0),
-                };
-
-                // Use liveEvent's GuestCount and DurationHours
-                var displayLines = new List<string>
-                {
-                    barInstance.Name + ":",
-                    drinksPerGuest.ToString("0.00") + " drinks per guest, Total drinks: " + Math.Round(totalDrinks)
-                };
-                displayLines.AddRange(barInstance.PrintBarSummary(
-                    Math.Max(1, liveEvent.GuestCount),
-                    liveEvent.DurationHours,
-                    totalDrinks));
-
-                textBox.Text = string.Join(Environment.NewLine, displayLines);
-
-                ScrollViewer scrollViewer = new ScrollViewer
-                {
-                    VerticalScrollBarVisibility = ScrollBarVisibility.Hidden,
-                    HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
-                    Content = textBox
-                };
-
-                Border border = new Border
-                {
-                    BorderBrush = Brushes.Black,
-                    BorderThickness = new Thickness(2),
-                    Child = scrollViewer,
-                    Margin = new Thickness(0)
-                };
-
-                Grid.SetColumn(border, i);
-                rowGrid.Children.Add(border);
-            }
-
-            return rowGrid;
-        }
-        private Node<string> MakeNodeFromList(List<string> list)
-        {
-            Node<string> head = null;
+            Node<string> head = null!;
             foreach (var item in list)
                 head = Node<string>.Append(head, item);
             return head;
         }
         private void UpdateRightPanel(Event liveEvent, List<string> selectedBars)
         {
+            // Clear existing layout
             RightPanelGrid.Children.Clear();
             RightPanelGrid.ColumnDefinitions.Clear();
             RightPanelGrid.RowDefinitions.Clear();
 
+            if (selectedBars.Count == 0) return;
+
             int numBars = selectedBars.Count;
             bool twoRows = numBars > 3;
 
-            // Set up rows
+            // Set up row definitions
             RightPanelGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             if (twoRows)
+            {
+                RightPanelGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(5) }); // Horizontal Splitter Row
                 RightPanelGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            }
 
-            int topCount = twoRows ? (numBars + 1) / 2 : numBars;
+            // Add horizontal splitter if needed
+            if (twoRows)
+            {
+                GridSplitter horizontalSplitter = new GridSplitter
+                {
+                    Height = 5,
+                    Background = Brushes.Black,
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                Grid.SetRow(horizontalSplitter, 1);
+                RightPanelGrid.Children.Add(horizontalSplitter);
+            }
 
             // Convert selected bar names to EventBarClass nodes
-            Node<EventBarClass> allBars = liveEvent.ConvertSelectedBars();
+            Node<EventBarClass> allBars = liveEvent.ConvertSelectedBars()!;
 
             // Build drinks info for all bars
-            Node<(EventBarClass, double, double)> allBarsInfo = BuildBarDrinkInfo(liveEvent, allBars);
+            Node<(EventBarClass, double, double)> allBarsInfo = BuildBarDrinkInfo(liveEvent, allBars)!;
 
-            // Separate top and bottom bars info
-            var topBarList = new List<(EventBarClass bar, double totalDrinks, double drinksPerGuest)>();
-            var bottomBarList = new List<(EventBarClass bar, double totalDrinks, double drinksPerGuest)>();
-
-            int index = 0;
+            // Store bar info in a list for easier access
+            var allBarInfoList = new List<(EventBarClass bar, double totalDrinks, double drinksPerGuest)>();
             Node<(EventBarClass, double, double)> cursor = allBarsInfo;
             while (cursor != null)
             {
-                var val = cursor.GetValue();
-
-                double safeTotal = double.IsInfinity(val.Item2) || double.IsNaN(val.Item2) ? 0.0 : val.Item2;
-                double safePerGuest = double.IsInfinity(val.Item3) || double.IsNaN(val.Item3) ? 0.0 : val.Item3;
-
-                if (index < topCount)
-                    topBarList.Add((val.Item1, safeTotal, safePerGuest));
-                else
-                    bottomBarList.Add((val.Item1, safeTotal, safePerGuest));
-
-                index++;
+                allBarInfoList.Add(cursor.GetValue());
                 cursor = cursor.GetNext();
             }
 
-            // Create grids
-            Grid topGrid = CreateRowGrid(liveEvent, topBarList);
+            // Determine the number of bars in each row
+            int topRowCount = twoRows ? (numBars + 1) / 2 : numBars;
+
+            // Split the list of bars
+            var topBarList = allBarInfoList.Take(topRowCount).ToList();
+            var bottomBarList = allBarInfoList.Skip(topRowCount).ToList();
+
+            // Create and place the top row grid
+            Grid topGrid = CreateRowGridWithSplitters(liveEvent, topBarList);
             Grid.SetRow(topGrid, 0);
             RightPanelGrid.Children.Add(topGrid);
 
+            // Create and place the bottom row grid if needed
             if (twoRows)
             {
-                Grid bottomGrid = CreateRowGrid(liveEvent, bottomBarList);
-                Grid.SetRow(bottomGrid, 1);
+                Grid bottomGrid = CreateRowGridWithSplitters(liveEvent, bottomBarList);
+                Grid.SetRow(bottomGrid, 2);
                 RightPanelGrid.Children.Add(bottomGrid);
             }
         }
-        private Node<(EventBarClass, double, double)> BuildBarDrinkInfo(Event liveEvent, Node<EventBarClass> allBars)
+        // In the MainWindow.xaml.cs file, update the BuildBarDrinkInfo method.
+        private Node<(EventBarClass, double, double)>? BuildBarDrinkInfo(Event liveEvent, Node<EventBarClass> allBars)
         {
-            Node<(EventBarClass, double, double)> head = null;
-
-            // The key insight: liveEvent.CalculateDrinksPerGuest() already gives us the 
-            // TOTAL drinks per guest considering all bar interactions.
-            // We just need to see how that total gets split among the individual bars.
-
+            Node<(EventBarClass, double, double)> head = null!;
             double totalDrinksPerGuest = liveEvent.CalculateDrinksPerGuest();
             double totalDrinks = totalDrinksPerGuest * liveEvent.GuestCount;
 
             if (double.IsInfinity(totalDrinks) || double.IsNaN(totalDrinks))
                 totalDrinks = 0.0;
 
-            // The Event.CalculateDrinksPerGuest() method already calculated how much each bar contributes
-            // We need to reverse-engineer the individual bar contributions from the total
+            // Special Case: Single Bar Event
+            if (Node<EventBarClass>.Count(allBars) == 1)
+            {
+                EventBarClass singleBar = allBars.GetValue();
+                head = Node<(EventBarClass, double, double)>.Append(head, (singleBar, totalDrinks, totalDrinksPerGuest));
+                return head;
+            }
 
-            // Step 1: Calculate each bar's individual contribution using Event's logic
+            // Main Logic: Multiple Bars
             Node<EventBarClass> tmp = allBars;
             var individualBarContributions = new List<(EventBarClass bar, double contribution)>();
+
+            // Get the dampening factor once for the entire event
+            double dampeningFactor = liveEvent.GetDampeningFactor();
 
             while (tmp != null)
             {
                 EventBarClass bar = tmp.GetValue();
-
-                // Calculate what this bar would contribute to drinks per guest
-                // This replicates the core logic from Event.CalculateDrinksPerGuest()
-
-                // Base rate depending on time of day
-                double baseRate;
-                if (liveEvent.TimeOfDay == "morning") baseRate = 0.7;
-                else if (liveEvent.TimeOfDay == "afternoon") baseRate = 0.9;
-                else baseRate = 1.2; // evening
-
-                // Duration scaling (matching Event logic)
-                double h = liveEvent.DurationHours;
-                double barDrinks = 0.0;
-                barDrinks += Math.Min(h, 3.0) * baseRate; // Peak consumption first 3 hours
-                barDrinks += Math.Min(Math.Max(h - 3.0, 0.0), 3.0) * baseRate * 0.6; // Hours 3-6: moderate decline
-                barDrinks += Math.Max(h - 6.0, 0.0) * baseRate * 0.25; // After 6 hours: major decline
-
-                // Apply bar-specific popularity and social/professional preference
-                double adjustedWeight = bar.GetAdjustedPopularity(liveEvent.TimeOfDay);
-                double pref = 1.0;
-
-                if (liveEvent.isSocial)
-                {
-                    if (bar.Name == "Easy drinks") pref = 1.3;
-                    else if (bar.Name == "Soda drinks") pref = 1.02;
-                    else if (bar.Name == "Cocktails" || bar.Name == "Cocktails (no alcohol)") pref = 1.15;
-                    else if (bar.Name == "Classic Alcohol Bar - Gold" || bar.Name == "Classic Alcohol Bar - Premium" ||
-                             bar.Name == "Beer" || bar.Name == "Wine" || bar.Name == "Ice / Barad")
-                        pref = 1.3;
-                }
-                else if (liveEvent.isProfessional)
-                {
-                    if (bar.Name == "Espresso bar") pref = (liveEvent.TimeOfDay == "morning") ? 1.5 : 1.2;
-                    else if (bar.Name == "Easy drinks") pref = 0.9;
-                    else if (bar.Name == "Soda drinks") pref = 0.95;
-                    else if (bar.Name == "Classic Alcohol Bar - Gold" || bar.Name == "Classic Alcohol Bar - Premium" ||
-                             bar.Name == "Beer" || bar.Name == "Wine" || bar.Name == "Ice / Barad")
-                        pref = 0.8;
-                }
-
-                barDrinks *= adjustedWeight * pref;
-                individualBarContributions.Add((bar, barDrinks));
+                double rawPopularity = bar.GetAdjustedPopularity(liveEvent.TimeOfDay, liveEvent.isSocial);
+                // Apply the dampening factor directly to the raw popularity score
+                double finalContribution = rawPopularity * dampeningFactor;
+                individualBarContributions.Add((bar, finalContribution));
                 tmp = tmp.GetNext();
             }
 
-            // Step 2: The actual drinks per guest is distributed proportionally to individual contributions
             double totalIndividualContributions = 0.0;
-            for (int i = 0; i < individualBarContributions.Count; i++)
+            foreach (var contribution in individualBarContributions)
             {
-                totalIndividualContributions += individualBarContributions[i].contribution;
+                totalIndividualContributions += contribution.contribution;
             }
 
             if (totalIndividualContributions <= 0.0)
-                totalIndividualContributions = 1.0; // avoid division by zero
+                totalIndividualContributions = 1.0;
 
-            // Step 3: Scale each bar's drinks based on the actual total drinks per guest
-            for (int i = 0; i < individualBarContributions.Count; i++)
+            // Distribute the TOTAL drinks per guest (already dampened) based on the new, dampened contributions
+            foreach (var contribution in individualBarContributions)
             {
-                EventBarClass bar = individualBarContributions[i].bar;
-                double contribution = individualBarContributions[i].contribution;
-
-                // This bar gets its proportional share of the actual total drinks per guest
-                double barDrinksPerGuest = totalDrinksPerGuest * (contribution / totalIndividualContributions);
+                double barDrinksPerGuest = totalDrinksPerGuest * (contribution.contribution / totalIndividualContributions);
                 double barTotalDrinks = barDrinksPerGuest * liveEvent.GuestCount;
-
-                head = Node<(EventBarClass, double, double)>.Append(head, (bar, barTotalDrinks, barDrinksPerGuest));
+                head = Node<(EventBarClass, double, double)>.Append(head, (contribution.bar, barTotalDrinks, barDrinksPerGuest));
             }
 
             return head;
+        }
+        // Helper method to create the content for a bar's summary panel
+        private ScrollViewer CreateBarSummaryPanel(EventBarClass barInstance, Event liveEvent, double totalDrinks, double drinksPerGuest)
+        {
+            TextBox textBox = new TextBox
+            {
+                TextWrapping = TextWrapping.NoWrap,
+                Margin = new Thickness(5),
+                FontSize = 14,
+                IsReadOnly = true,
+                FontFamily = new FontFamily("Consolas"),
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+            };
+
+            var displayLines = new List<string>
+    {
+        barInstance.Name + ":",
+        drinksPerGuest.ToString("0.00") + " drinks per guest, Total drinks: " + Math.Round(totalDrinks)
+    };
+            displayLines.AddRange(barInstance.PrintBarSummary(
+                Math.Max(1, liveEvent.GuestCount),
+                liveEvent.DurationHours,
+                totalDrinks));
+
+            textBox.Text = string.Join(Environment.NewLine, displayLines);
+
+            return new ScrollViewer
+            {
+                VerticalScrollBarVisibility = ScrollBarVisibility.Hidden,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                Content = textBox
+            };
         }
         private void PrintSummary(Event liveEvent)
         {
@@ -334,5 +290,52 @@ namespace BarOmaticGUI2
             // Add the TextBox to the new StackPanel in the left panel
             LeftSummaryPanel.Children.Add(summaryTextBox);
         }
+        private Grid CreateRowGridWithSplitters(Event liveEvent, List<(EventBarClass bar, double totalDrinks, double drinksPerGuest)> barInfoList)
+        {
+            Grid rowGrid = new Grid();
+            int numBars = barInfoList.Count;
+
+            // Create a column for each bar and a splitter column in between
+            for (int i = 0; i < numBars; i++)
+            {
+                rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                if (i < numBars - 1)
+                {
+                    rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(5) });
+                }
+            }
+
+            // Populate the grid with bar content and vertical splitters
+            for (int i = 0; i < numBars; i++)
+            {
+                var (barInstance, totalDrinks, drinksPerGuest) = barInfoList[i];
+
+                Border border = new Border
+                {
+                    BorderBrush = Brushes.Black,
+                    BorderThickness = new Thickness(2),
+                    Margin = new Thickness(0),
+                    Child = CreateBarSummaryPanel(barInstance, liveEvent, totalDrinks, drinksPerGuest)
+                };
+                Grid.SetColumn(border, i * 2);
+                rowGrid.Children.Add(border);
+
+                if (i < numBars - 1)
+                {
+                    GridSplitter verticalSplitter = new GridSplitter
+                    {
+                        Width = 5,
+                        Background = Brushes.Black,
+                        VerticalAlignment = VerticalAlignment.Stretch,
+                        HorizontalAlignment = HorizontalAlignment.Center
+                    };
+                    Grid.SetColumn(verticalSplitter, (i * 2) + 1);
+                    rowGrid.Children.Add(verticalSplitter);
+                }
+            }
+
+            return rowGrid;
+        }
+
     }
 }
