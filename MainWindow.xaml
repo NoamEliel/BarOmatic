@@ -6,7 +6,6 @@
         Width="1600"
         Height="900"
         WindowStartupLocation="CenterScreen"
-        Icon="/Assets/BlackAndWhiteIcon.ico"
         Background="White">
 
     <Border BorderBrush="Black" BorderThickness="10" Margin="0">
@@ -58,10 +57,8 @@
 
             <Border Grid.Column="1" Background="Black" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
 
-            <Border Grid.Column="2" Background="WhiteSmoke" Margin="0" BorderBrush="Black" BorderThickness="2">
-                <Grid x:Name="RightPanelGrid">
-                </Grid>
-            </Border>
+            <Grid Grid.Column="2" x:Name="RightPanelGrid" Background="WhiteSmoke">
+            </Grid>
         </Grid>
     </Border>
 </Window>
