@@ -5,7 +5,7 @@ namespace BarOmaticGUI2.ProjectCode
         private T value;
         private Node<T> next;
 
-        public Node(T value, Node<T> next = null)
+        public Node(T value, Node<T> next = null!)
         {
             this.value = value;
             this.next = next;
